@@ -22,6 +22,8 @@ void plic_handle() {
 
 void kernel_trap(struct ktrapframe *ktf) {
     assert(!intr_get());
+    uint64 sepc = r_sepc();
+    uint64 sstatus = r_sstatus();
 
     if ((r_sstatus() & SSTATUS_SPP) == 0) {
         errorf("kerneltrap: not from supervisor mode");
@@ -49,6 +51,13 @@ void kernel_trap(struct ktrapframe *ktf) {
             case SupervisorTimer:
                 tracef("s-timer interrupt, cycle: %d", r_time());
                 set_next_timer();
+                if(curr_proc()!=NULL){
+                    int old = mycpu()->inkernel_trap;
+                    mycpu()->inkernel_trap = 0;
+                    yield();
+                    mycpu()->inkernel_trap = old;
+                }
+                
                 // we never preempt kernel threads.
                 break;
             case SupervisorExternal:
@@ -63,7 +72,9 @@ void kernel_trap(struct ktrapframe *ktf) {
         // kernel exception, unexpected.
         goto kernel_panic;
     }
-
+    // 关键：yield/sched/scheduler 之后，恢复这次 trap 原始返回现场
+    w_sepc(sepc);
+    w_sstatus(sstatus);
     assert(!intr_get());
     assert(mycpu()->inkernel_trap == 1);
 

@@ -8,13 +8,19 @@ static struct queue task_queue;
 
 // defined in proc.c
 extern struct proc *pool[NPROC];
+//lock
+static struct spinlock task_queue_lock;
 
 void sched_init() {
     init_queue(&task_queue);
+    spinlock_init(&task_queue_lock, "task_queue");
+
 }
 
 static struct proc *fetch_task() {
+    acquire(&task_queue_lock);
     struct proc *proc = pop_queue(&task_queue);
+    release(&task_queue_lock);
     if (proc != NULL)
         debugf("fetch task (pid=%d) from task queue", proc->pid);
     return proc;
@@ -24,7 +30,9 @@ void add_task(struct proc *p) {
     assert(p->state == RUNNABLE);
     assert(holding(&p->lock));
 
+    acquire(&task_queue_lock);
     push_queue(&task_queue, p);
+    release(&task_queue_lock);
     debugf("add task (pid=%d) to task queue", p->pid);
 }
 
@@ -78,7 +86,7 @@ void scheduler() {
 
         acquire(&p->lock);
         assert(p->state == RUNNABLE);
-        logf(PURPLE, "sched", "switch to proc pid(%d)", p->pid);
+        //logf(PURPLE, "sched", "switch to proc pid(%d)", p->pid);
         p->state = RUNNING;
         c->proc  = p;
         swtch(&c->sched_context, &p->context);
@@ -118,7 +126,7 @@ void sched() {
     assert(!intr_get());
 
     interrupt_on = mycpu()->interrupt_on;
-    logf(PURPLE, "sched", "switch to scheduler pid(%d)", p->pid);
+    //logf(PURPLE, "sched", "switch to scheduler pid(%d)", p->pid);
     swtch(&p->context, &mycpu()->sched_context);
     mycpu()->interrupt_on = interrupt_on;
 

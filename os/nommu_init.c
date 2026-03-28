@@ -1,9 +1,9 @@
 #include "defs.h"
 #include "timer.h"
 
-#define NTHREAD 8
+#define NTHREAD 15
 #define CNT_PER_THR 10000
-#define SLEEP_TIME 500
+#define SLEEP_TIME 50
 
 volatile uint64 count = 0;
 
@@ -17,6 +17,7 @@ void worker(uint64 id) {
                 panic("interrupt should be on when executing process");
 
             infof("thread %d: count %d, sleeping", pid, count);
+            //yield();
             sleepms(SLEEP_TIME);
         }
     }
